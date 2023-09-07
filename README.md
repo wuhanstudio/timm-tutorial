@@ -1,8 +1,8 @@
 # TIMM Tutorial
 
-> TIMM (Torch Image Models) provides SOTA computer vision models.
+> TIMM (Torch IMage Models) provides SOTA computer vision models.
 
-As deep learning models and datasets grow, it is more common to fine-tune pretrained models than train a model from scratch.
+As the size of deep learning models and datasets grows, it is more common to fine-tune pretrained models than train a model from scratch.
 
 ### Vision Transformer
 
