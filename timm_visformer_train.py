@@ -21,12 +21,12 @@ class VisFormer(torch.nn.Module):
     def __init__(self, in_chans=1, out_features=10):
         super(VisFormer, self).__init__()
 
-        self.resnet = timm.create_model('resnet50', pretrained=True, in_chans=in_chans)
+        self.vis = timm.create_model('visformer_tiny.in1k', pretrained=True, in_chans=in_chans)
 
         # Change the classifier
-        num_in_features = self.resnet.get_classifier().in_features
+        num_in_features = self.vis.get_classifier().in_features
 
-        self.resnet.fc = torch.nn.Sequential(
+        self.vis.head = torch.nn.Sequential(
             # torch.nn.BatchNorm1d(num_in_features),
             # torch.nn.Linear(in_features=num_in_features, out_features=512, bias=False),
             # torch.nn.ReLU(),
@@ -39,14 +39,14 @@ class VisFormer(torch.nn.Module):
         # Alternatively
         # model.reset_classifier(10, 'max')
 
-        for param in self.resnet.parameters():
+        for param in self.vis.parameters():
             param.requires_grad = False
 
-        for param in self.resnet.fc.parameters():
+        for param in self.vis.head.parameters():
             param.requires_grad = True
 
     def forward(self, x):
-        return self.resnet(x)
+        return self.vis(x)
 
 # 1 Load the dataset
 transform = transforms = transforms.Compose([
