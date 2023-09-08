@@ -114,3 +114,10 @@ for epoch in range(N_EPOCHS):
 
     # Test model
     test_model(model, test_loader, ce_loss)
+
+# Save model
+model_scripted = torch.jit.script(model) # Export to TorchScript
+model_scripted.save('timm_efficientnet.pt') # Save
+
+# model = torch.jit.load('timm_efficientnet.pt')
+# model.eval()

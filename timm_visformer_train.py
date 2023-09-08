@@ -114,3 +114,9 @@ for epoch in range(N_EPOCHS):
 
     # Test model
     test_model(model, test_loader, ce_loss)
+
+model_scripted = torch.jit.script(model) # Export to TorchScript
+model_scripted.save('timm_visformer.pt') # Save
+
+# model = torch.jit.load('timm_visformer.pt')
+# model.eval()
