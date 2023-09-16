@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 
 import timm
+from timm.utils.model_ema import ModelEmaV2
 import torch 
 import torch.nn.functional as F
 
@@ -25,8 +26,8 @@ from torch.nn import BCELoss
 # https://www.kaggle.com/datasets/iarunava/cell-images-for-detecting-malaria
 DATA_FOLDER = os.path.join('datasets', 'cell_images_py')
 
-N_EPOCHS = 5
-LR = 0.005
+N_EPOCHS = 10
+LR = 0.001
 
 # Alternatively
 # test_dataset = ImageFolder(root=DATA_FOLDER, transform=transform)
@@ -107,9 +108,9 @@ train_set = CellImageDataset(root=os.path.join(DATA_FOLDER,'train'), transform=t
 val_set = CellImageDataset(root=os.path.join(DATA_FOLDER, 'val'), transform=transform)
 test_set = CellImageDataset(root=os.path.join(DATA_FOLDER, 'test'), transform=transform)
 
-train_loader = DataLoader(train_set, shuffle=True, batch_size=128)
-val_loader = DataLoader(val_set, shuffle=False, batch_size=128)
-test_loader = DataLoader(test_set, shuffle=False, batch_size=128)
+train_loader = DataLoader(train_set, shuffle=True, batch_size=32)
+val_loader = DataLoader(val_set, shuffle=False, batch_size=32)
+test_loader = DataLoader(test_set, shuffle=False, batch_size=32)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using device: ", device, f"({torch.cuda.get_device_name(device)})" if torch.cuda.is_available() else "")
@@ -127,17 +128,23 @@ for param in model.parameters():
 
 model.to(device)
 
+ema_model = ModelEmaV2(model, decay=0.99)
+
 optimizer = Adam(trainable_parameters, lr=LR)
 bce_loss = BCELoss()
 
-def test_model(model, test_loader, bce_loss):    
+def test_model(model, test_loader, bce_loss, is_ema = False):    
     with torch.no_grad():
         correct, total = 0, 0
         test_loss = 0.0
         for batch in test_loader:
             x, y = batch
             x, y = x.to(device), y.to(device)
-            y_hat = model(x)
+            if is_ema:
+                y_hat = model.module(x)
+            else:
+                y_hat = model(x)
+            y_pred = torch.argmax(y_hat)
             loss = bce_loss(y_hat, F.one_hot(y, num_classes=2).float())
             test_loss += loss.detach().cpu().item() / len(test_loader)
 
@@ -145,6 +152,8 @@ def test_model(model, test_loader, bce_loss):
             total += len(x)
 
         print(f"Test loss: {test_loss:.2f} Test accuracy: {correct / total * 100:.2f}%")
+
+model.train()
 
 for epoch in range(N_EPOCHS):
     train_loss = 0.0
@@ -161,10 +170,14 @@ for epoch in range(N_EPOCHS):
         loss.backward()
         optimizer.step()
 
+        ema_model.update(model)
+
+
     print(f"\nEpoch {epoch + 1}/{N_EPOCHS} Train loss: {train_loss:.2f}")
 
     # Validate model
     test_model(model, val_loader, bce_loss)
+    test_model(ema_model, val_loader, bce_loss, is_ema=True)
 
 # Test model
 test_model(model, test_loader, bce_loss)
